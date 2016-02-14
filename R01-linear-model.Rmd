@@ -83,5 +83,3 @@ prd_main_features = subset(prd_lm$coef, prd_lm$coef < coef_cutoff)
 print(length(prd_main_features))
 ```
 
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
