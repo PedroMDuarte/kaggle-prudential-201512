@@ -1,0 +1,87 @@
+---
+title: "R01-linear-model"
+author: "PedroMDuarte"
+date: "February 11, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary of the entire dataframe
+
+```{r}
+prudential <- read.csv('~/my-sandbox/kaggle/151202-prudential/csvs/data_imputed.csv')
+summary(prudential)
+```
+
+## Explore response with BMI
+```{r}
+prd_train = subset(prudential, train. == 'True')
+prd_features = subset(prudential, train. == 'True', select = c(-Response, -train.))
+ggplot(aes(x = BMI), data = prd_train) +
+  geom_histogram() +
+  facet_wrap(~Response, ncol = 4)
+```
+
+```{r}
+ggplot(prd_train, aes(factor(Response), BMI)) + 
+  geom_boxplot() 
+ggplot(prd_train, aes(factor(Response), Wt)) + 
+  geom_boxplot() 
+ggplot(prd_train, aes(factor(Response), Ins_Age)) + 
+  geom_boxplot() 
+ggplot(prd_train, aes(factor(Response), Ht / BMI)) + 
+  geom_boxplot() 
+```
+
+## Fit with a regularized linear model
+
+```{r}
+library(MASS)
+set.seed(0)
+prd_lm = lm.ridge(prd_train$Response ~ ., data = prd_features, lambda=0.5)
+```
+
+Save the model coefficients
+```{r}
+ridgecoefs <- data.frame(as.list(prd_lm$coef))
+write.csv(ridgecoefs, file = '~/my-sandbox/kaggle/151202-prudential/csvs/R_ridge_coefficients.csv')
+```
+
+```{r}
+prd_train$BinResponse34 <- prd_train$Response == 4 | prd_train$Response == 3
+prd_lm_bin34 = lm.ridge(prd_train$BinResponse34 ~ ., data = prd_features, lambda=0.5)
+ridgecoefs_bin <- data.frame(as.list(prd_lm_bin34$coef))
+sort(abs(prd_lm_bin34$coef), decreasing = TRUE)
+```
+
+```{r}
+prd_train$BinResponse12 <- prd_train$Response == 2 | prd_train$Response == 1
+prd_lm_bin12 = lm.ridge(prd_train$BinResponse12 ~ ., data = prd_features, lambda=0.5)
+ridgecoefs_bin <- data.frame(as.list(prd_lm_bin12$coef))
+sort(abs(prd_lm_bin12$coef), decreasing = TRUE)
+```
+
+```{r}
+prd_train$BinResponse1 <- prd_train$Response == 1
+prd_lm_bin1 = lm.ridge(prd_train$BinResponse1 ~ ., data = prd_features, lambda=0.5)
+ridgecoefs_bin <- data.frame(as.list(prd_lm_bin1$coef))
+sort(abs(prd_lm_bin1$coef), decreasing = TRUE)
+```
+
+Find features within the 50% quantile of the distribution of ridge coefficients:
+
+```{r}
+library(ggplot2)
+coef_cutoff = quantile(abs(prd_lm$coef), 0.50)
+qplot(x = seq(1,length(prd_lm$coef),1), y = abs(prd_lm$coef)) + 
+  geom_hline(aes(yintercept=coef_cutoff)) + 
+  scale_y_log10()
+prd_main_features = subset(prd_lm$coef, prd_lm$coef < coef_cutoff)
+print(length(prd_main_features))
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
